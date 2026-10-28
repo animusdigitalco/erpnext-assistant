@@ -24,6 +24,7 @@ HARD_BLOCKED_DOCTYPES = {
 	"Token Cache",
 	"Social Login Key",
 	"Email Account",
+	"Email Queue",
 	"LDAP Settings",
 	"Webhook",
 	"Assistant Settings",
@@ -197,7 +198,9 @@ def _sanitize_filters(doctype: str, filters) -> list:
 			raise ToolError(
 				f"'{fieldname}' is not a field of {doctype}. Use get_doctype_schema to see its fields."
 			)
-		if _is_sensitive_field(meta.get_field(fieldname)):
+		if _is_sensitive_field(meta.get_field(fieldname)) or (
+			fieldname != "name" and fieldname not in _permitted_fieldnames(meta)
+		):
 			raise ToolError(f"'{fieldname}' is not available to the assistant.")
 		clean.append([fieldname, operator, value])
 	return clean
@@ -209,8 +212,17 @@ def _is_sensitive_field(df) -> bool:
 	return df.fieldtype == "Password"
 
 
-def _visible_fields(meta) -> list:
-	return [df for df in meta.fields if not _is_sensitive_field(df)]
+def _permitted_fieldnames(meta, parenttype: str | None = None) -> set:
+	"""Fieldnames the current user may read, honoring permlevel restrictions."""
+	return set(meta.get_permitted_fieldnames(parenttype=parenttype))
+
+
+def _visible_fields(meta, parenttype: str | None = None) -> list:
+	permitted = _permitted_fieldnames(meta, parenttype=parenttype)
+	return [
+		df for df in meta.fields
+		if not _is_sensitive_field(df) and df.fieldname in permitted
+	]
 
 
 def _truncate(value):
@@ -256,6 +268,8 @@ def _list_documents(tool_input: dict, settings) -> dict:
 	doctype = tool_input.get("doctype")
 	_check_doctype_access(doctype, settings)
 	meta = frappe.get_meta(doctype)
+	if meta.issingle:
+		raise ToolError(f"{doctype} is a single settings document. Use get_document with name='{doctype}'.")
 
 	max_results = min(int(settings.max_results_per_query or 20), MAX_RESULTS_HARD_CAP)
 	limit = min(int(tool_input.get("limit") or max_results), max_results)
@@ -320,7 +334,7 @@ def _get_document(tool_input: dict, settings) -> dict:
 			child_meta = frappe.get_meta(df.options)
 			child_fields = [
 				c.fieldname
-				for c in _visible_fields(child_meta)
+				for c in _visible_fields(child_meta, parenttype=doctype)
 				if c.fieldtype not in ("Section Break", "Column Break", "Tab Break", "HTML")
 			]
 			value = [
@@ -337,6 +351,8 @@ def _count_documents(tool_input: dict, settings) -> dict:
 	doctype = tool_input.get("doctype")
 	_check_doctype_access(doctype, settings)
 	meta = frappe.get_meta(doctype)
+	if meta.issingle:
+		raise ToolError(f"{doctype} is a single settings document. Use get_document with name='{doctype}'.")
 
 	aggregate = (tool_input.get("aggregate") or "count").lower()
 	if aggregate not in ("count", "sum", "avg", "min", "max"):
@@ -351,7 +367,7 @@ def _count_documents(tool_input: dict, settings) -> dict:
 			raise ToolError(f"fieldname is required for {aggregate} and must be a real field")
 		if df.fieldtype not in ("Currency", "Float", "Int", "Percent", "Duration"):
 			raise ToolError(f"'{fieldname}' is not numeric ({df.fieldtype})")
-		if _is_sensitive_field(df):
+		if _is_sensitive_field(df) or df.fieldname not in _permitted_fieldnames(meta):
 			raise ToolError(f"'{fieldname}' is not available to the assistant.")
 		expr = f"{aggregate}(`{df.fieldname}`) as value"
 

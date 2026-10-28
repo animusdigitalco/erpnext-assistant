@@ -17,6 +17,7 @@
   "scope_column_break",
   "max_results_per_query",
   "max_tool_calls",
+  "max_questions_per_hour",
   "behavior_section",
   "system_instructions",
   "behavior_column_break",
@@ -101,6 +102,13 @@
    "fieldtype": "Int",
    "label": "Max Lookups Per Question",
    "description": "How many data lookups the assistant may make to answer one question before it must respond with what it has."
+  },
+  {
+   "default": "30",
+   "fieldname": "max_questions_per_hour",
+   "fieldtype": "Int",
+   "label": "Max Questions Per User Per Hour",
+   "description": "Spending brake. Set 0 to disable the limit."
   },
   {
    "fieldname": "behavior_section",

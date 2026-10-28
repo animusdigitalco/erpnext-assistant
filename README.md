@@ -17,7 +17,7 @@ Most "AI + ERP" tools fail on trust. This one is built around three hard guarant
 2. **Your permissions are the boundary.** Every lookup runs through Frappe's own permission-checked APIs as the logged-in user. The assistant can never show a user anything ERPNext itself would not show them. A sales user asking about payroll gets a permission message, not payroll.
 3. **Your key, your data, server side only.** The Anthropic API key is stored encrypted on your site and used only from the server. It is never sent to a browser. The only data that leaves your server is the content of records the assistant reads to answer a question, sent to the Anthropic API under your own key.
 
-On top of that, admins get a **blocked doctypes** list (things the assistant can never read regardless of permissions), and credential doctypes (User, API keys, OAuth records, email accounts) are hard-blocked in code. Password-type fields are stripped from every result.
+On top of that, admins get a **blocked doctypes** list (things the assistant can never read regardless of permissions), and credential doctypes (User, API keys, OAuth records, email accounts, the email queue) are hard-blocked in code. Password-type fields are stripped from every result, field-level permissions (permlevels) are honored on reads, filters and aggregates, and a per-user hourly question cap keeps any one user from running up the site's Anthropic bill.
 
 ## Requirements
 
@@ -82,8 +82,15 @@ You should see `erpnext_assistant` in the list.
 | Blocked DocTypes | empty | Doctypes the assistant can never read, for anyone |
 | Max Results Per Lookup | 20 | Rows one lookup may return (hard cap 100) |
 | Max Lookups Per Question | 15 | Data lookups allowed per question |
+| Max Questions Per User Per Hour | 30 | Spending brake per user (0 disables it) |
 | Extra Instructions | — | Site-specific context added to every chat |
 | Save Conversations | on | Store each user's chats (each user only sees their own) |
+
+## Troubleshooting
+
+- **Answers cut off with a gateway error on hard questions:** a question that needs many lookups on a large model can outlast the default web worker timeout. Raise it with `bench config http_timeout 300 && bench setup supervisor && bench restart` (on Frappe Cloud, set the HTTP timeout in the bench group settings).
+- **"The anthropic Python package is not installed":** run `bench pip install anthropic && bench restart`.
+- **A user who should have access gets a permission error:** check Allowed Roles in Assistant Settings, and remember an empty list means System Managers only.
 
 ## What it costs
 

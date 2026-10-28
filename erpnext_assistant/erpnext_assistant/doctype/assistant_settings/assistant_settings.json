@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "creation": "2026-10-28 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "anthropic_section",
+  "api_key_instructions",
+  "api_key",
+  "anthropic_column_break",
+  "model",
+  "access_section",
+  "allowed_roles",
+  "scope_section",
+  "blocked_doctypes",
+  "scope_column_break",
+  "max_results_per_query",
+  "max_tool_calls",
+  "behavior_section",
+  "system_instructions",
+  "behavior_column_break",
+  "save_conversations",
+  "privacy_section",
+  "privacy_note"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "description": "Master switch. Nobody can use the assistant while this is off."
+  },
+  {
+   "fieldname": "anthropic_section",
+   "fieldtype": "Section Break",
+   "label": "Anthropic API"
+  },
+  {
+   "fieldname": "api_key_instructions",
+   "fieldtype": "HTML",
+   "label": "How to get an API key",
+   "options": "<div class=\"text-muted\" style=\"line-height: 1.7; margin-bottom: 8px;\">\n<strong>How to get an Anthropic API key</strong>\n<ol style=\"padding-left: 18px; margin: 6px 0;\">\n<li>Go to <a href=\"https://console.anthropic.com\" target=\"_blank\" rel=\"noopener\">console.anthropic.com</a> and sign in, or create an account.</li>\n<li>Open <strong>Settings &rarr; Billing</strong> and add a payment method or prepaid credits. The API is pay as you go and keys do not work without billing set up.</li>\n<li>Open <strong>Settings &rarr; API Keys</strong> and click <strong>Create Key</strong>. Give it a name like <em>erpnext-assistant</em> so you can revoke it on its own later.</li>\n<li>Copy the key (it starts with <code>sk-ant-</code>) and paste it below. The console only shows it once.</li>\n</ol>\nThe key is stored encrypted on this site and is only ever used server side. It is never sent to anyone's browser.\n</div>"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "Anthropic API Key",
+   "description": "Starts with sk-ant-. Stored encrypted with the site's encryption key."
+  },
+  {
+   "fieldname": "anthropic_column_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "claude-opus-5",
+   "fieldname": "model",
+   "fieldtype": "Select",
+   "label": "Model",
+   "options": "claude-opus-5\nclaude-sonnet-5\nclaude-haiku-4-5",
+   "description": "Opus gives the best answers. Haiku is the budget option, roughly a fifth of the cost per question."
+  },
+  {
+   "fieldname": "access_section",
+   "fieldtype": "Section Break",
+   "label": "Who Can Use It"
+  },
+  {
+   "fieldname": "allowed_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Allowed Roles",
+   "options": "Assistant Allowed Role",
+   "description": "Users with any of these roles can open the assistant. Leave empty to allow System Managers only. Every data lookup still runs under the asking user's own permissions, so a role here grants access to the chat, never to extra data."
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Data Scope"
+  },
+  {
+   "fieldname": "blocked_doctypes",
+   "fieldtype": "Small Text",
+   "label": "Blocked DocTypes",
+   "description": "One DocType name per line. The assistant can never read these, even for users who otherwise have permission. Example entries: Salary Slip, Salary Structure, Employee. User, API keys, email accounts and other credential doctypes are always blocked regardless of this list."
+  },
+  {
+   "fieldname": "scope_column_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "20",
+   "fieldname": "max_results_per_query",
+   "fieldtype": "Int",
+   "label": "Max Results Per Lookup",
+   "description": "Upper limit of records one tool call can return (capped at 100). Keeps answers focused and token costs down."
+  },
+  {
+   "default": "15",
+   "fieldname": "max_tool_calls",
+   "fieldtype": "Int",
+   "label": "Max Lookups Per Question",
+   "description": "How many data lookups the assistant may make to answer one question before it must respond with what it has."
+  },
+  {
+   "fieldname": "behavior_section",
+   "fieldtype": "Section Break",
+   "label": "Behavior"
+  },
+  {
+   "fieldname": "system_instructions",
+   "fieldtype": "Small Text",
+   "label": "Extra Instructions",
+   "description": "Optional context added to every chat, e.g. \"Our fiscal year starts in July\" or \"Amounts are in USD unless stated otherwise\"."
+  },
+  {
+   "fieldname": "behavior_column_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "save_conversations",
+   "fieldtype": "Check",
+   "label": "Save Conversations",
+   "description": "Store each user's chats so they survive a reload. Each user can only ever see their own."
+  },
+  {
+   "fieldname": "privacy_section",
+   "fieldtype": "Section Break",
+   "label": "Privacy & Cost"
+  },
+  {
+   "fieldname": "privacy_note",
+   "fieldtype": "HTML",
+   "label": "Privacy Note",
+   "options": "<div class=\"text-muted\" style=\"line-height: 1.7;\">\n<strong>What leaves your server:</strong> when the assistant reads a record to answer a question, that record's field values are sent to the Anthropic API under your key, the same way they would be if you pasted them into a chat yourself. Nothing is sent while the assistant is disabled, and nothing is ever sent for doctypes on the blocked list. Anthropic's API terms apply to data sent under your key.<br><br>\n<strong>What it can never do:</strong> the assistant is read only by construction. It has no tools that create, change, submit, cancel or delete anything, and every read runs under the asking user's own ERPNext permissions.<br><br>\n<strong>Cost:</strong> billed to your Anthropic account per token. A typical question costs a few cents on Opus and a fraction of a cent on Haiku.\n</div>"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-28 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "ERPNext Assistant",
+ "name": "Assistant Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

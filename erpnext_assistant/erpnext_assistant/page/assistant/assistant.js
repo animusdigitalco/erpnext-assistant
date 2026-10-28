@@ -20,8 +20,8 @@ class ERPNextAssistant {
 		this.load_conversation_list();
 
 		frappe.realtime.on("erpnext_assistant_progress", (data) => {
-			if (this.busy && data && data.text) {
-				this.$progress.text(data.text + "…");
+			if (this.busy && data && data.text && this.$thinking) {
+				this.$thinking.find(".ea-thinking-text").text(data.text + "…");
 			}
 		});
 	}
@@ -40,9 +40,17 @@ class ERPNextAssistant {
 			.ea-bubble table { font-size: var(--text-sm); }
 			.ea-composer { display: flex; gap: 8px; padding: 12px 8px; border-top: 1px solid var(--border-color, #ebeef0); }
 			.ea-composer textarea { flex: 1; resize: none; max-height: 140px; }
-			.ea-progress { min-height: 20px; font-size: var(--text-sm); color: var(--text-muted); padding: 0 8px 4px; }
 			.ea-empty { text-align: center; color: var(--text-muted); margin-top: 15vh; }
 			.ea-usage { font-size: var(--text-xs); color: var(--text-muted); margin-top: 4px; }
+			.ea-msg-notice .ea-bubble { background: var(--bg-orange, #fff4e5); border: 1px solid var(--orange-200, #f5c26b); }
+			.ea-notice-label { font-size: var(--text-xs); font-weight: 600; color: var(--orange-600, #b35c00); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+			.ea-thinking-text { font-size: var(--text-sm); color: var(--text-muted); margin-left: 8px; }
+			.ea-dots { display: inline-flex; gap: 4px; align-items: center; padding: 2px 0; }
+			.ea-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted, #94a3b8); animation: eaBounce 1.2s infinite ease-in-out; }
+			.ea-dots span:nth-child(2) { animation-delay: .15s; }
+			.ea-dots span:nth-child(3) { animation-delay: .3s; }
+			@keyframes eaBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-5px); opacity: 1; } }
+			@media (prefers-reduced-motion: reduce) { .ea-dots span { animation: none; opacity: .7; } }
 		`;
 		$("<style>", { id: "erpnext-assistant-style", text: css }).appendTo("head");
 	}
@@ -51,7 +59,6 @@ class ERPNextAssistant {
 		this.$wrap = $(`
 			<div class="ea-wrap">
 				<div class="ea-messages"></div>
-				<div class="ea-progress"></div>
 				<div class="ea-composer">
 					<textarea class="form-control" rows="2"
 						placeholder="${__("Ask about your data, e.g. 'Which invoices are overdue this month?'")}"></textarea>
@@ -61,9 +68,9 @@ class ERPNextAssistant {
 		`).appendTo(this.page.main);
 
 		this.$messages = this.$wrap.find(".ea-messages");
-		this.$progress = this.$wrap.find(".ea-progress");
 		this.$input = this.$wrap.find("textarea");
 		this.$send = this.$wrap.find(".btn-send");
+		this.$thinking = null;
 
 		this.show_empty_state();
 
@@ -118,17 +125,39 @@ class ERPNextAssistant {
 		this.$input.val("").focus();
 	}
 
-	append_message(role, content) {
+	append_message(role, content, opts = {}) {
 		this.$messages.find(".ea-empty").remove();
 		const html = role === "assistant" ? frappe.markdown(content) : frappe.utils.escape_html(content);
+		const notice = opts.notice ? " ea-msg-notice" : "";
+		const label = opts.notice ? `<div class="ea-notice-label">${__("Out of scope")}</div>` : "";
 		const $msg = $(`
-			<div class="ea-msg ea-msg-${role}">
-				<div class="ea-bubble">${html}</div>
+			<div class="ea-msg ea-msg-${role}${notice}">
+				<div class="ea-bubble">${label}${html}</div>
 			</div>
 		`);
 		this.$messages.append($msg);
 		this.scroll_down();
 		return $msg;
+	}
+
+	show_thinking() {
+		this.$thinking = $(`
+			<div class="ea-msg ea-msg-assistant">
+				<div class="ea-bubble">
+					<span class="ea-dots" aria-label="${__("Thinking")}"><span></span><span></span><span></span></span>
+					<span class="ea-thinking-text">${__("Thinking")}…</span>
+				</div>
+			</div>
+		`);
+		this.$messages.append(this.$thinking);
+		this.scroll_down();
+	}
+
+	hide_thinking() {
+		if (this.$thinking) {
+			this.$thinking.remove();
+			this.$thinking = null;
+		}
 	}
 
 	scroll_down() {
@@ -144,7 +173,7 @@ class ERPNextAssistant {
 		this.$input.val("");
 		this.$send.prop("disabled", true);
 		this.append_message("user", message);
-		this.$progress.text(__("Thinking…"));
+		this.show_thinking();
 
 		frappe
 			.call({
@@ -153,10 +182,13 @@ class ERPNextAssistant {
 				timeout: 300,
 			})
 			.then((r) => {
+				this.hide_thinking();
 				this.conversation = r.message.conversation || this.conversation;
-				const $msg = this.append_message("assistant", r.message.reply);
+				const $msg = this.append_message("assistant", r.message.reply, {
+					notice: !!r.message.out_of_scope,
+				});
 				const u = r.message.usage;
-				if (u) {
+				if (u && !r.message.out_of_scope) {
 					$msg
 						.find(".ea-bubble")
 						.append(
@@ -165,12 +197,12 @@ class ERPNextAssistant {
 				}
 			})
 			.catch(() => {
+				this.hide_thinking();
 				this.append_message("assistant", __("That did not work. Check the error message or the Error Log."));
 			})
 			.always(() => {
 				this.busy = false;
 				this.$send.prop("disabled", false);
-				this.$progress.text("");
 				this.$input.focus();
 			});
 	}
